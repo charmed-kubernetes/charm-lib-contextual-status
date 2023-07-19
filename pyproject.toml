@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "charm-lib-contextual-status"
+version = "0.0.0"
+authors = [
+  {name="George Kraft", email="george.kraft@canonical.com"},
+]
+description = "Charm library for handling unit status with contexts"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "ops",
+]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/charmed-kubernetes/charm-lib-contextual-status"
+"Bug Tracker" = "https://github.com/charmed-kubernetes/charm-lib-contextual-status/issues"
