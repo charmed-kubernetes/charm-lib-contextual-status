@@ -71,7 +71,7 @@ def context(unit, exit_status: Optional[StatusBase] = None):
 class ReconcilerError(Exception):
     """
     Raised by the on_error context when the charm translates
-    a known/expected error into a Waiting or Blocked Status.
+    a known|expected error into a Waiting or Blocked Status.
 
     on_error allows the charm developer to escape the reconcile
     loop by raising expected exceptions, which will be translated
