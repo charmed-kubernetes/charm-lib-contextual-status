@@ -89,6 +89,11 @@ def on_error(status: StatusBase, *status_exceptions: Type[Exception]):
     specified status to the status context. This can be used as a function
     decorator to emit Blocked or Waiting status on error with less try/except
     boilerplate.
+    
+    By default, on_error catches all exceptions, but it can be tuned to only
+    catch specific exception types passed in status_exceptions.  When tuned,
+    the status is only added to the context on the passed exceptions, and other
+    exceptions won't be caught
     """
     status_exceptions = status_exceptions or (Exception,)
 
@@ -99,5 +104,3 @@ def on_error(status: StatusBase, *status_exceptions: Type[Exception]):
         log.error(msg)
         add(status)
         raise ReconcilerError(msg) from e
-    except Exception:
-        raise
