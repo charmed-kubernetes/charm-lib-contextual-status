@@ -1,14 +1,15 @@
 import logging
 
 from contextlib import contextmanager
-from ops import ActiveStatus, BlockedStatus, WaitingStatus
+from typing import Optional, Tuple, Type
+from ops import ActiveStatus, BlockedStatus, StatusBase, WaitingStatus
 
 contexts = []
 log = logging.getLogger(__name__)
 
 
-def add(status):
-    """ Add unit status to the current context.
+def add(status: StatusBase):
+    """Add unit status to the current context.
 
     If status is MaintenanceStatus, then it is assigned to the unit immediately
     so the charm can provide in-progress updates.
@@ -30,8 +31,8 @@ def add(status):
 
 
 @contextmanager
-def context(unit):
-    """ Create a status context.
+def context(unit, exit_status: Optional[StatusBase] = None):
+    """Create a status context.
 
     Status contexts are used to collect Blocked or Waiting statuses that are
     raised within the context lifecycle. Any calls to the add() function with
@@ -39,12 +40,19 @@ def context(unit):
 
     When the context is closed, unit status is set according to a priority
     order, preferring Blocked status over Waiting. The earliest Status that
-    is set will be used.
+    is set will be used. If no statuses are set, the specified exit_status is used.
 
     Multiple contexts can be nested, in which case each active context will
     capture every status that is raised within. This usage isn't recommended
     however.
+
+    Args:
+        unit (Unit): The unit whose status is being managed.
+        exit_status (StatusBase, optional): The status to set when the exiting
+        the context if no other status is set. Defaults to ActiveStatus(Ready)
     """
+    exit_status = exit_status or ActiveStatus("Ready")
+
     if contexts:
         log.warning("Already in a status context, proceeding anyway")
 
@@ -55,22 +63,44 @@ def context(unit):
         yield
     finally:
         contexts.pop()
-        statuses = context['blocked'] + context['waiting']
+        statuses = context["blocked"] + context["waiting"]
         log.info(f"Status context closed with: {statuses}")
-        unit.status = statuses[0] if statuses else ActiveStatus()
+        unit.status = statuses[0] if statuses else exit_status
+
+
+class ReconcilerError(Exception):
+    """
+    Raised by the on_error context when the charm translates
+    a known|expected error into a Waiting or Blocked Status.
+
+    on_error allows the charm developer to escape the reconcile
+    loop by raising expected exceptions, which will be translated
+    into charm status conditions.
+    """
+
+    pass
 
 
 @contextmanager
-def on_error(status):
-    """ Context for emitting status on error.
+def on_error(status: StatusBase, *status_exceptions: Type[Exception]):
+    """Context for emitting status on error.
 
     If an exception occurs within the on_error context body, then add the
     specified status to the status context. This can be used as a function
     decorator to emit Blocked or Waiting status on error with less try/except
     boilerplate.
+    
+    By default, on_error catches all exceptions, but it can be tuned to only
+    catch specific exception types passed in status_exceptions.  When tuned,
+    the status is only added to the context on the passed exceptions, and other
+    exceptions won't be caught
     """
+    status_exceptions = status_exceptions or (Exception,)
+
     try:
         yield
-    except Exception:
+    except status_exceptions as e:
+        msg = f"Found expected exception: {e}"
+        log.error(msg)
         add(status)
-        raise
+        raise ReconcilerError(msg) from e
