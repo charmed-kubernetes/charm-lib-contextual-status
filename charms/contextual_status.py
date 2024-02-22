@@ -101,6 +101,6 @@ def on_error(status: StatusBase, *status_exceptions: Type[Exception]):
         yield
     except status_exceptions as e:
         msg = f"Found expected exception: {e}"
-        log.error(msg)
+        log.debug(msg)
         add(status)
         raise ReconcilerError(msg) from e
