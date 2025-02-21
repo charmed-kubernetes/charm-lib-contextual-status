@@ -1,10 +1,10 @@
 import logging
 
 from contextlib import contextmanager
-from typing import Optional, Tuple, Type
+from typing import List, Dict, Optional, Type
 from ops import ActiveStatus, BlockedStatus, StatusBase, WaitingStatus
 
-contexts = []
+contexts: List[Dict] = []
 log = logging.getLogger(__name__)
 
 
@@ -22,9 +22,9 @@ def add(status: StatusBase):
         return
 
     for context in contexts:
-        if type(status) == BlockedStatus:
+        if isinstance(status, BlockedStatus):
             context["blocked"].append(status)
-        elif type(status) == WaitingStatus:
+        elif isinstance(status, WaitingStatus):
             context["waiting"].append(status)
         else:
             context["unit"].status = status
@@ -89,7 +89,7 @@ def on_error(status: StatusBase, *status_exceptions: Type[Exception]):
     specified status to the status context. This can be used as a function
     decorator to emit Blocked or Waiting status on error with less try/except
     boilerplate.
-    
+
     By default, on_error catches all exceptions, but it can be tuned to only
     catch specific exception types passed in status_exceptions.  When tuned,
     the status is only added to the context on the passed exceptions, and other
