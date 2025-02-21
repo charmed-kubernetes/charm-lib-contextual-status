@@ -1,14 +1,21 @@
 import logging
-
+import ops
 from contextlib import contextmanager
-from typing import List, Dict, Optional, Type
-from ops import ActiveStatus, BlockedStatus, StatusBase, WaitingStatus
+from typing import List, Optional, Type, TypedDict
 
-contexts: List[Dict] = []
 log = logging.getLogger(__name__)
 
 
-def add(status: StatusBase):
+class Context(TypedDict):
+    unit: ops.Unit
+    blocked: List[ops.BlockedStatus]
+    waiting: List[ops.WaitingStatus]
+
+
+contexts: List[Context] = []
+
+
+def add(status: ops.StatusBase):
     """Add unit status to the current context.
 
     If status is MaintenanceStatus, then it is assigned to the unit immediately
@@ -22,16 +29,16 @@ def add(status: StatusBase):
         return
 
     for context in contexts:
-        if isinstance(status, BlockedStatus):
+        if isinstance(status, ops.BlockedStatus):
             context["blocked"].append(status)
-        elif isinstance(status, WaitingStatus):
+        elif isinstance(status, ops.WaitingStatus):
             context["waiting"].append(status)
         else:
             context["unit"].status = status
 
 
 @contextmanager
-def context(unit, exit_status: Optional[StatusBase] = None):
+def context(unit: ops.Unit, exit_status: Optional[ops.StatusBase] = None):
     """Create a status context.
 
     Status contexts are used to collect Blocked or Waiting statuses that are
@@ -51,12 +58,12 @@ def context(unit, exit_status: Optional[StatusBase] = None):
         exit_status (StatusBase, optional): The status to set when the exiting
         the context if no other status is set. Defaults to ActiveStatus(Ready)
     """
-    exit_status = exit_status or ActiveStatus("Ready")
+    exit_status = exit_status or ops.ActiveStatus("Ready")
 
     if contexts:
         log.warning("Already in a status context, proceeding anyway")
 
-    context = {"unit": unit, "blocked": [], "waiting": []}
+    context: Context = {"unit": unit, "blocked": [], "waiting": []}
     contexts.append(context)
 
     try:
@@ -82,7 +89,7 @@ class ReconcilerError(Exception):
 
 
 @contextmanager
-def on_error(status: StatusBase, *status_exceptions: Type[Exception]):
+def on_error(status: ops.StatusBase, *status_exceptions: Type[Exception]):
     """Context for emitting status on error.
 
     If an exception occurs within the on_error context body, then add the
